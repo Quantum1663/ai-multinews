@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* quick sanity check */
+:root { --radius: 14px; }
+/* remove this after verifying: */
+/* body { outline: 2px dashed red; } */
