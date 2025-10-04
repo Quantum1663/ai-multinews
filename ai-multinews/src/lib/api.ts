@@ -91,3 +91,25 @@ export function factShieldScore(m: number, h: number, cred: number, agree: numbe
   const score = 100 - (50 * m + 30 * h + 10 * (1 - cred) + 10 * (1 - agree))
   return Math.max(0, Math.min(100, score))
 }
+
+export const FeedItem = z.object({
+  id: z.string(),
+  title: z.string(),
+  source: z.string().nullable().optional(),
+  m: z.number(),
+  h: z.number(),
+  cred: z.number(),
+  agree: z.number(),
+  created_at: z.string(),
+})
+export type TFeedItem = z.infer<typeof FeedItem>
+
+export const FeedOut = z.object({
+  items: z.array(FeedItem),
+})
+export type TFeedOut = z.infer<typeof FeedOut>
+
+export async function getFeed(limit = 20, offset = 0) {
+  const res = await api.get('feed', { searchParams: { limit, offset } }).json()
+  return FeedOut.parse(res)
+}

@@ -1,27 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import Badge from '../components/Badge'
 import FactShieldScore from '../components/FactShieldScore'
-import { ingest } from '../lib/api'
+import { ingest, getFeed } from '../lib/api'
 
-type FeedItem = {
-  id: string
-  title: string
-  source: string
-  m: number
-  h: number
-  cred: number
-  agree: number
-}
-
-// Temporary seeded list (replace with real API later)
-const items: FeedItem[] = [
-  { id: '1', title: 'Article A', source: 'NDTV', m: 0.34, h: 0.12, cred: 0.8, agree: 0.7 },
-  { id: '2', title: 'Article B', source: 'PIB', m: 0.10, h: 0.05, cred: 0.95, agree: 0.9 },
-]
-
-function scoreOf(it: FeedItem) {
-  return Math.round(100 - (50 * it.m + 30 * it.h + 10 * (1 - it.cred) + 10 * (1 - it.agree)))
+function scoreOf(m: number, h: number, cred: number, agree: number) {
+  return Math.round(100 - (50 * m + 30 * h + 10 * (1 - cred) + 10 * (1 - agree)))
 }
 
 export default function Feed() {
@@ -30,11 +15,16 @@ export default function Feed() {
   const [err, setErr] = useState<string | null>(null)
   const nav = useNavigate()
 
+  const q = useQuery({
+    queryKey: ['feed'],
+    queryFn: () => getFeed(30, 0),
+    refetchOnWindowFocus: false,
+  })
+
   async function onIngest() {
     if (!newUrl) return
     try {
-      setBusy(true)
-      setErr(null)
+      setBusy(true); setErr(null)
       const res = await ingest({ url: newUrl })
       setNewUrl('')
       nav(`/article/${res.id}`)
@@ -68,24 +58,32 @@ export default function Feed() {
       </div>
 
       {/* Feed list */}
-      <div className="space-y-4">
-        {items.map((it) => (
-          <Link
-            key={it.id}
-            to={`/article/${it.id}`}
-            className="block border rounded-2xl p-4 hover:bg-zinc-50"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <h3 className="font-semibold">{it.title}</h3>
-              <Badge>{it.source}</Badge>
-            </div>
-
-            <div className="mt-3 rounded-2xl border p-4 bg-white">
-              <FactShieldScore score={scoreOf(it)} />
-            </div>
-          </Link>
-        ))}
-      </div>
+      {q.isLoading ? (
+        <div className="opacity-70">Loading feed…</div>
+      ) : q.isError ? (
+        <div className="text-red-600 text-sm">Failed to load feed.</div>
+      ) : (
+        <div className="space-y-4">
+          {q.data?.items.length ? q.data.items.map((it) => {
+            const score = scoreOf(it.m, it.h, it.cred, it.agree)
+            return (
+              <Link key={it.id} to={`/article/${it.id}`} className="block border rounded-2xl p-4 hover:bg-zinc-50">
+                <div className="flex items-center justify-between gap-4">
+                  <h3 className="font-semibold line-clamp-2">{it.title}</h3>
+                  <Badge>{it.source ?? 'Unknown'}</Badge>
+                </div>
+                <div className="mt-3 rounded-2xl border p-4 bg-white">
+                  <FactShieldScore score={score} />
+                </div>
+                <div className="text-xs opacity-60 mt-1">Added: {new Date(it.created_at).toLocaleString()}</div>
+              </Link>
+            )
+          }) : (
+            <div className="opacity-70 text-sm">No articles yet. Try ingesting a URL above.</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
+

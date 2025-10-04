@@ -9,3 +9,10 @@ numpy
 scikit-learn
 sentence-transformers
 nltk
+newsapi-python
+transformers
+torch
+protobuf
+sentencepiece
+tokenizers
+beautifulsoup4
